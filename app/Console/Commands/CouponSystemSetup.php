@@ -209,7 +209,7 @@ class CouponSystemSetup extends Command
 
         try {
             // 이벤트 구독자 시작
-            Artisan::call('coupon:subscribe');
+            Artisan::call('coupon:subscribe-events');
 
             $this->line('✓ Event subscriber started');
 
@@ -270,7 +270,7 @@ class CouponSystemSetup extends Command
         $this->line('   php artisan coupon:monitor health');
         $this->line('');
         $this->line('3. Subscribe to events:');
-        $this->line('   php artisan coupon:subscribe');
+        $this->line('   php artisan coupon:subscribe-events');
         $this->line('');
         $this->line('4. Test the API endpoints:');
         $this->line('   GET /api/coupons/user/{userId}/applicable');

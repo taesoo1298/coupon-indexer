@@ -13,16 +13,20 @@ use App\Http\Controllers\Api\CouponController;
 |
 */
 
-Route::middleware('api')->prefix('api/v1')->group(function () {
+Route::middleware('api')->prefix('v1')->group(function () {
 
     // 쿠폰 관련 API
     Route::prefix('coupons')->group(function () {
 
+        // 쿠폰 발행
+        Route::post('issue', [CouponController::class, 'issueCoupon'])
+            ->name('api.coupons.issue');
+
         // 사용자 쿠폰 관련
-        Route::get('users/{userId}', [CouponController::class, 'getUserCoupons'])
+        Route::get('user/{userId}', [CouponController::class, 'getUserCoupons'])
             ->name('api.coupons.user-coupons');
 
-        Route::get('users/{userId}/optimal', [CouponController::class, 'getOptimalCoupons'])
+        Route::get('user/{userId}/optimal', [CouponController::class, 'getOptimalCoupons'])
             ->name('api.coupons.optimal-coupons');
 
         // 쿠폰 분석

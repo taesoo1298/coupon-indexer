@@ -48,6 +48,8 @@ class CouponIndexService
                 'indexed_at' => now()->timestamp,
             ];
 
+            // coupon:{id}
+
             // 쿠폰 데이터 저장
             $redis->hMSet($couponKey, $couponData);
             $redis->expire($couponKey, $this->defaultTtl);
@@ -55,16 +57,20 @@ class CouponIndexService
             // 사용자별 쿠폰 인덱스에 추가
             if ($coupon->user_id) {
                 $this->addToUserCoupons($coupon->user_id, $coupon->id, $coupon->status);
+                // user_coupons:{user_id}
             }
 
             // 프로모션별 쿠폰 인덱스에 추가
             $this->addToPromotionCoupons($coupon->promotion_id, $coupon->id, $coupon->status);
 
+            // promotion_coupons:{promotion_id}
+
             // 상태별 쿠폰 인덱스에 추가
-            $this->addToStatusCoupons($coupon->status, $coupon->id);
+            // $this->addToStatusCoupons($coupon->status, $coupon->id);
 
             // 만료 예정 쿠폰 인덱스 관리
             $this->updateExpiringCoupons($coupon);
+            // expiring_coupons
 
             // 인덱스 상태 업데이트
             $this->updateIndexStatus('coupon', "coupon:{$coupon->id}", $coupon->id, 'completed', $couponData);
@@ -93,7 +99,7 @@ class CouponIndexService
     {
         try {
             $redis = Redis::connection($this->redisConnection);
-            $promotionKey = $this->getKey('promotion', $promotion->id);
+            $promotionKey = $this->getKey('promotion_coupons', $promotion->id);
 
             $promotionData = [
                 'id' => $promotion->id,

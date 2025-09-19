@@ -284,6 +284,93 @@ class CouponController extends Controller
     }
 
     /**
+     * 쿠폰 발행
+     */
+    public function issueCoupon(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'promotion_id' => 'required|integer|exists:promotions,id',
+            'user_id' => 'required|integer|exists:users,id',
+            'expires_days' => 'integer|min:1|max:365',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid request data',
+                'errors' => $validator->errors(),
+            ], 400);
+        }
+
+        try {
+            $promotion = \App\Models\Promotion::find($request->promotion_id);
+            $user = User::find($request->user_id);
+
+            // 프로모션 활성 상태 확인
+            if (!$promotion->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Promotion is not active',
+                ], 400);
+            }
+
+            // 쿠폰 생성
+            $coupon = \App\Models\Coupon::create([
+                'promotion_id' => $promotion->id,
+                'user_id' => $user->id,
+                'code' => $this->generateCouponCode(),
+                'status' => 'active',
+                'issued_at' => now(),
+                'expires_at' => now()->addDays($request->get('expires_days', 30)),
+                'discount_amount' => $promotion->value,
+            ]);
+
+            // 인덱스에 추가
+            $this->indexService->indexCoupon($coupon);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Coupon issued successfully',
+                'data' => [
+                    'coupon' => [
+                        'id' => $coupon->id,
+                        'code' => $coupon->code,
+                        'status' => $coupon->status,
+                        'promotion_id' => $coupon->promotion_id,
+                        'user_id' => $coupon->user_id,
+                        'issued_at' => $coupon->issued_at->toISOString(),
+                        'expires_at' => $coupon->expires_at->toISOString(),
+                        'discount_amount' => $coupon->discount_amount,
+                    ],
+                    'promotion' => [
+                        'id' => $promotion->id,
+                        'name' => $promotion->name,
+                        'type' => $promotion->type,
+                        'value' => $promotion->value,
+                    ],
+                    'user' => [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                    ],
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to issue coupon', [
+                'promotion_id' => $request->promotion_id,
+                'user_id' => $request->user_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to issue coupon',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * 인덱스 상태 조회
      */
     public function getIndexStatus(): JsonResponse
@@ -343,5 +430,17 @@ class CouponController extends Controller
             'shipping_method' => $request->get('shipping_method'),
             'payment_method' => $request->get('payment_method'),
         ];
+    }
+
+    /**
+     * 쿠폰 코드 생성
+     */
+    private function generateCouponCode(): string
+    {
+        do {
+            $code = strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 10));
+        } while (\App\Models\Coupon::where('code', $code)->exists());
+
+        return $code;
     }
 }
